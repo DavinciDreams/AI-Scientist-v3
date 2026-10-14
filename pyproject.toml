@@ -1,0 +1,100 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentic-scientist"
+version = "0.1.0"
+description = "Orchestrating coding agents for automated scientific discovery"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Robert Tjarko Lange" },
+    { name = "Luca Grillotti" },
+    { name = "Yutaro Yamada" },
+    { name = "Rujikorn Charakorn" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "pandas",
+    "matplotlib",
+    "numpy",
+    "scipy",
+    "PyYAML>=6.0",
+    "hydra-core>=1.3,<2.0",
+    "omegaconf>=2.3,<3.0",
+    "fastapi>=0.128.8,<1.0",
+    "uvicorn>=0.39.0,<1.0",
+    "pypdf>=5,<6",
+    "scholarly==1.7.11",
+    "httpx>=0.27,<0.28",
+]
+
+[project.urls]
+Homepage = "https://github.com/SakanaAI/AI-Scientist-v3"
+Repository = "https://github.com/SakanaAI/AI-Scientist-v3"
+Issues = "https://github.com/SakanaAI/AI-Scientist-v3/issues"
+Paper = "https://arxiv.org/abs/2610.18933"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.19.1",
+    "ruff>=0.15.2",
+    "types-PyYAML>=6.0",
+    "pytest>=8.0",
+    "pytest-xdist>=3.5",
+]
+
+[project.scripts]
+agsci = "src.agsci.main:main"
+
+[tool.setuptools]
+packages = [
+    "src",
+    "src.agsci",
+    "src.orchestrator",
+    "src.investigation",
+    "src.variants_pipeline",
+    "src.pipeline",
+    "src.posthoc_pipeline",
+    "src.final_evaluation",
+    "src.task_drafting",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = [
+    "results",
+]
+
+[tool.ruff.lint]
+select = ["F"]
+exclude = ["examples/*"]
+
+[tool.ruff.lint.per-file-ignores]
+"examples/circpack/evaluate.py" = ["F541"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+show_error_codes = true
+exclude = "(^results/|^examples/|^src/agents/skills/write-paper-standalone/scripts/validate_claims\\.py$)"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+norecursedirs = ["results", ".git", ".venv", "build", "dist"]

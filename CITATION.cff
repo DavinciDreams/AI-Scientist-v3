@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the paper below."
+title: "The Agentic Scientist"
+type: software
+license: Apache-2.0
+repository-code: "https://github.com/SakanaAI/AI-Scientist-v3"
+authors:
+  - family-names: Lange
+    given-names: Robert Tjarko
+  - family-names: Grillotti
+    given-names: Luca
+  - family-names: Yamada
+    given-names: Yutaro
+  - family-names: Charakorn
+    given-names: Rujikorn
+  - family-names: Ha
+    given-names: David
+preferred-citation:
+  type: article
+  title: "The Agentic Scientist: Orchestrating Coding Agents for Automated Scientific (Co-)Discovery"
+  authors:
+    - family-names: Lange
+      given-names: Robert Tjarko
+    - family-names: Grillotti
+      given-names: Luca
+    - family-names: Yamada
+      given-names: Yutaro
+    - family-names: Charakorn
+      given-names: Rujikorn
+    - family-names: Ha
+      given-names: David
+  journal: "arXiv preprint arXiv:2610.18933"
+  year: 2026
+  month: 10
+  doi: "10.48550/arXiv.2610.18933"
+  url: "https://arxiv.org/abs/2610.18933"
+  identifiers:
+    - type: other
+      value: "arXiv:2610.18933"
+      description: "arXiv identifier"

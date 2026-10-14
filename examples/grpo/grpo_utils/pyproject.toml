@@ -1,0 +1,22 @@
+[project]
+name = "grpo_utils"
+version = "1.0.0"
+description = "GRPO utilities"
+requires-python = ">=3.11,<3.13"
+dependencies = []
+
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+exclude = ["logs*", "wandb*", "pylog*"]
+where = ["src"]
+include = ["grpo_utils*"]
+
+[tool.setuptools.package-data]
+grpo_utils = ["prompts/*.prompt", "MATH/*.jsonl"]
+

@@ -1,0 +1,29 @@
+schema_version = 1
+code_root = "src"
+
+[entrypoint]
+path = "program.py"
+language = "python"
+type = "script"
+
+[copy]
+exclude = [
+  "**/__pycache__/**",
+  "**/*.pyc",
+  ".venv/**",
+  "node_modules/**",
+  ".git/**",
+  ".mypy_cache/**",
+  ".pytest_cache/**",
+  ".ruff_cache/**",
+  ".tox/**",
+  ".nox/**",
+  "dist/**",
+  "build/**",
+]
+include = []
+
+[integration]
+kind = "generic"
+notes = ""
+

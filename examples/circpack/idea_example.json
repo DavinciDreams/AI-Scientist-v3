@@ -1,0 +1,28 @@
+{
+  "idea_id": "idea_circpack_reheat_001",
+  "title": "Adaptive Reheating + Multi-Restart Search",
+  "hypothesis": "Adaptive reheating with restart diversification will improve exploration and raise total radius while preserving non-overlap.",
+  "implementation_plan": [
+    "Add adaptive reheating trigger based on stagnation",
+    "Use multiple restart seeds with different initial packing layouts",
+    "Increase overlap penalty near end of optimization"
+  ],
+  "target_rubrics": [
+    {
+      "id": "uses_reheating_and_restarts",
+      "description": "The program uses reheating and restarts",
+      "type": "implementation"
+    },
+    {
+      "id": "uses_constraint_optimization",
+      "description": "The program uses a type of constraint optimization",
+      "type": "implementation"
+    },
+    {
+      "id": "score_exceeds_2_1",
+      "description": "The sum of radii for 26 circles exceeds 2.1",
+      "type": "metric"
+    }
+  ],
+  "notes_for_agent": "Prioritize correctness (`correct=true`) while pushing combined_score above 2.1."
+}

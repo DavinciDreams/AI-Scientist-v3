@@ -1,0 +1,17 @@
+[
+  {
+    "id": "uses_reheating_and_restarts",
+    "description": "The program uses reheating and restarts",
+    "type": "implementation"
+  },
+  {
+    "id": "uses_constraint_optimization",
+    "description": "The program uses a type of constraint optimization",
+    "type": "implementation"
+  },
+  {
+    "id": "score_exceeds_2_1",
+    "description": "The sum of radii for 26 circles exceeds 2.1",
+    "type": "metric"
+  }
+]

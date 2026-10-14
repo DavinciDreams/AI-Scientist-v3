@@ -1,0 +1,84 @@
+# Agents
+.codex
+
+# Figures
+*.pdf
+*.png
+!docs/assets/*.png
+
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+.env/
+.env.*
+
+# Claude Code local settings
+.claude
+
+# Test and lint caches
+.pytest_cache/
+pytest-of-*/
+.mypy_cache/
+.ruff_cache/
+.pi/
+.coverage
+.coverage.*
+htmlcov/
+
+# Build artifacts
+build/
+dist/
+node_modules/
+*.egg-info/
+# Private sibling staging used while building/publishing task runtimes.
+/examples/.*.runtime-build-*/
+/examples/.*.runtime-create-*.cid
+/examples/.*.tooling-build-*.cid
+/examples/.*.tooling-install-*.cid
+/examples/.*.runtime-install-*.cid
+/examples/.*.runtime-evaluation-*.cid
+
+# Logs
+*.log
+
+# macOS
+.DS_Store
+
+# NFS (Network File System) related files
+.nfs*
+
+# Run outputs
+results/
+
+# Playwright CLI local snapshots
+.playwright-cli/
+
+# Local documentation caches
+.codex-docs-cache/
+
+# Other files
+.env
+output/
+scratch/
+
+# Local scratch
+playground/
+
+# Run / analysis artifacts
+outputs/
+*.tar.gz
+
+# Persistent task runtime build locks (never prune to recover GPU state).
+/examples/.*.runtime-build.lock
+
+# GRPO model snapshot fetched by examples/grpo/download_model.py
+/examples/grpo/resources/
+
+# Harness-written sealed task runtime manifest (machine-specific, derived)
+.agentic_runtime.json
