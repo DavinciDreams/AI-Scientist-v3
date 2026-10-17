@@ -1,0 +1,27 @@
+# Prebuild both images on the destination server as described in docs/coolify.md.
+services:
+  scientist:
+    image: ${SAKANA_IMAGE:?Set SAKANA_IMAGE to the prebuilt controller image}
+    pull_policy: never
+    init: true
+    restart: unless-stopped
+    environment:
+      ZAI_API_KEY: ${ZAI_API_KEY:-}
+      AGENT_IMAGE: ${AGENT_IMAGE:?Set AGENT_IMAGE to the prebuilt upstream agent image}
+      INSPECTOR_USERNAME: ${INSPECTOR_USERNAME:-lisa}
+      INSPECTOR_PASSWORD: ${SERVICE_PASSWORD_64_INSPECTOR}
+    volumes:
+      # Identical paths are required for the host Docker daemon's bind mounts.
+      - /data/sakanascientist:/data/sakanascientist
+      - /var/run/docker.sock:/var/run/docker.sock
+      # The upstream evaluator and repair gates bind short Unix sockets here.
+      - /tmp/agentic-scientist-broker-0:/tmp/agentic-scientist-broker-0
+      - /dev/shm/agentic-task-gates-0:/dev/shm/agentic-task-gates-0
+    expose:
+      - "8765"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/api/healthz', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

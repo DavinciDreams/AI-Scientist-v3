@@ -8,14 +8,27 @@ import os
 from pathlib import Path
 import time
 from typing import Any
+from urllib.parse import urlsplit
 
 logger = logging.getLogger(__name__)
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from .content_loader import load_text_file, resolve_path_under_run
+from .control import (
+    DEFAULT_PHASES,
+    PIPELINE_PHASES,
+    VALID_AGENTS,
+    ControlConfig,
+    ControlError,
+    JobManager,
+    create_task,
+    list_studies,
+    list_tasks,
+    resolve_study,
+)
 from .discovery import DiscoveredRun, RunStub, discover_run_stubs, discover_single_run
 from .graph_builder import build_graph
 from .models import (
@@ -177,6 +190,17 @@ class RunStore:
             return stub.path
         raise KeyError(run_id)
 
+    def run_id_for_path(self, path: Path) -> str | None:
+        """The inspector run id whose investigation directory is ``path``, if any."""
+        try:
+            target = path.resolve()
+        except OSError:
+            return None
+        for run_id, stub in self._stubs_by_id.items():
+            if stub.path.resolve() == target:
+                return run_id
+        return None
+
     def idea_ancestors(self, run_id: str, idea_id: str, *, worker_name: str | None = None) -> IdeaAncestors:
         prepared = self._ensure_prepared(run_id)
         return build_idea_ancestors(prepared.run, idea_id, worker_name=worker_name)
@@ -219,11 +243,148 @@ def _configure_spa_routes(app: FastAPI, frontend_dist: Path) -> None:
         return FileResponse(index_path)
 
 
+def _require_same_origin(request: Request) -> None:
+    """Refuse cross-site requests to endpoints that write or launch.
+
+    The API allows any CORS origin for reads, so a page on another site could
+    otherwise drive a local server that has launching enabled.
+    """
+    fetch_site = request.headers.get("sec-fetch-site")
+    if fetch_site is not None:
+        if fetch_site not in {"same-origin", "none"}:
+            raise HTTPException(status_code=403, detail="cross-site request refused")
+        return
+    origin = request.headers.get("origin")
+    if origin is not None and urlsplit(origin).netloc != request.headers.get("host"):
+        raise HTTPException(status_code=403, detail="cross-site request refused")
+
+
+def _register_control_routes(app: FastAPI, store: RunStore, control: ControlConfig) -> None:
+    jobs = JobManager(control)
+    app.state.jobs = jobs
+    guarded = [Depends(_require_same_origin)]
+
+    def bad_request(exc: ControlError) -> HTTPException:
+        return HTTPException(status_code=400, detail=str(exc))
+
+    def require_launch() -> None:
+        if not control.launch_enabled:
+            raise HTTPException(status_code=403, detail="Launching is disabled on this server")
+
+    @app.get("/api/control/config")
+    def control_config() -> dict[str, Any]:
+        return {
+            "launch_enabled": control.launch_enabled,
+            "can_create_tasks": control.launch_enabled and control.writable_task_root is not None,
+            "max_running_jobs": control.max_running_jobs,
+            "agents": list(VALID_AGENTS),
+            "agent_locked": control.agent_locked,
+            "phases": list(PIPELINE_PHASES),
+            "default_phases": list(DEFAULT_PHASES),
+            "presets": list(control.presets),
+            "providers": list(control.providers),
+            "reserved_keys": sorted(control.reserved_keys),
+        }
+
+    @app.get("/api/tasks")
+    def tasks() -> list[dict[str, Any]]:
+        return list_tasks(control)
+
+    @app.post("/api/tasks", dependencies=guarded)
+    def new_task(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        require_launch()
+        try:
+            return create_task(control, str(payload.get("name", "")), str(payload.get("brief", "")))
+        except ControlError as exc:
+            raise bad_request(exc) from exc
+
+    @app.get("/api/studies")
+    def studies() -> list[dict[str, Any]]:
+        return list_studies(control.results_root, inspector_run_id=store.run_id_for_path)
+
+    @app.get("/api/studies/{study_id:path}/paper.pdf", include_in_schema=False)
+    def study_paper(study_id: str) -> FileResponse:
+        try:
+            study = resolve_study(control.results_root, study_id)
+        except ControlError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        pdf = study / "paper" / "paper.pdf"
+        try:
+            pdf.resolve().relative_to(study)
+        except (ValueError, OSError) as exc:
+            raise HTTPException(status_code=404, detail="paper not found") from exc
+        if not pdf.is_file():
+            raise HTTPException(status_code=404, detail="paper not found")
+        filename = f"{study.parent.parent.name}-{study.name}.pdf"
+        return FileResponse(
+            pdf,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'inline; filename="{filename}"'},
+        )
+
+    def job_request(payload: dict[str, Any]) -> dict[str, Any]:
+        overrides = payload.get("overrides") or []
+        if not isinstance(overrides, list) or not all(isinstance(o, str) for o in overrides):
+            raise ControlError("overrides must be a list of key=value strings")
+        resume = payload.get("resume_study_id")
+        return {
+            "kind": str(payload.get("kind", "run")),
+            "task_path": str(payload.get("task_path", "")),
+            "overrides": overrides,
+            "dry_run": bool(payload.get("dry_run", False)),
+            "resume_study_id": str(resume) if resume else None,
+        }
+
+    @app.get("/api/jobs")
+    def list_jobs() -> list[dict[str, Any]]:
+        return jobs.list_jobs()
+
+    @app.post("/api/jobs/preview")
+    def preview_job(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        try:
+            _task, argv = jobs.build_command(**job_request(payload), run_id="<job id>")
+        except ControlError as exc:
+            raise bad_request(exc) from exc
+        return {"argv": argv}
+
+    @app.post("/api/jobs", dependencies=guarded)
+    def start_job(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        require_launch()
+        try:
+            return jobs.start(**job_request(payload))
+        except ControlError as exc:
+            raise bad_request(exc) from exc
+
+    @app.get("/api/jobs/{job_id}")
+    def get_job(job_id: str) -> dict[str, Any]:
+        try:
+            return jobs.get(job_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=f"Unknown job: {job_id}") from exc
+
+    @app.get("/api/jobs/{job_id}/log")
+    def job_log(job_id: str, offset: int = Query(default=0, ge=0)) -> dict[str, Any]:
+        try:
+            return jobs.read_log(job_id, offset)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=f"Unknown job: {job_id}") from exc
+
+    @app.post("/api/jobs/{job_id}/cancel", dependencies=guarded)
+    def cancel_job(job_id: str, force: bool = Query(default=False)) -> dict[str, Any]:
+        try:
+            return jobs.cancel(job_id, force=force)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=f"Unknown job: {job_id}") from exc
+        except ControlError as exc:
+            raise bad_request(exc) from exc
+
+
 def create_app(
     *,
     results_root: Path | None = None,
     frontend_dist: Path | None = None,
     agentlens_base_url: str | None = None,
+    control: ControlConfig | None = None,
 ) -> FastAPI:
     resolved_results_root = (
         (results_root or Path(os.environ.get("RUN_INSPECTOR_RESULTS_ROOT", _DEFAULT_RESULTS_ROOT))).expanduser().resolve()
@@ -371,6 +532,18 @@ def create_app(
             truncated=loaded.truncated,
             text=loaded.text,
         )
+
+    # Without an explicit control config the UI lists studies but cannot launch.
+    _register_control_routes(
+        app,
+        store,
+        control
+        or ControlConfig(
+            results_root=resolved_results_root,
+            jobs_dir=resolved_results_root / ".jobs",
+            task_roots=(),
+        ),
+    )
 
     if resolved_frontend_dist.exists():
         _configure_spa_routes(app, resolved_frontend_dist)

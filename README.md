@@ -26,6 +26,8 @@ writes the paper, with every stage kept under one run directory.
 
 ## Install
 
+For Coolify with Z.ai GLM-5.3-Flash, see [the deployment guide](docs/coolify.md).
+
 The recommended setup runs every agent phase inside Docker, which is the
 default for `agsci run`. Install [Docker](https://docs.docker.com/get-docker/),
 then build the agent image:
@@ -116,7 +118,9 @@ results/<task>/<agent>/<run_id>/
 Investigation plus the task snapshot is enough to write a paper; the other
 phases add evidence when available and are reported as degraded when they fail.
 Browse any run in the browser with `agsci inspect start`
-(`http://127.0.0.1:8765`).
+(`http://127.0.0.1:8765`); add `--enable-launch` to also launch runs, follow
+their logs, and open papers from the web UI (see
+[docs/run_inspector.md](docs/run_inspector.md)).
 
 ## Recommended starting setup
 

@@ -100,6 +100,16 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         help="AgentLens base URL (default: %(default)s)",
     )
     parser.add_argument(
+        "--enable-launch",
+        action="store_true",
+        help="let the UI launch `agsci run`/`agsci doctor` jobs and create task briefs",
+    )
+    parser.add_argument(
+        "--tasks-root",
+        default=None,
+        help="writable directory for task briefs created in the UI (default: none)",
+    )
+    parser.add_argument(
         "--no-open", action="store_true", help="do not open a browser once the server is up"
     )
     parser.add_argument(
@@ -134,6 +144,10 @@ def backend_command(host: InspectorHost, args: argparse.Namespace, *, dev: bool)
         "--agentlens-base-url",
         args.agentlens_base_url,
     ]
+    if args.enable_launch:
+        command.append("--enable-launch")
+    if args.tasks_root:
+        command.extend(["--tasks-root", args.tasks_root])
     if dev:
         command.extend(["--dev", "--reload"])
     return command

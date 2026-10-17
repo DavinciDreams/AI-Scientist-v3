@@ -213,6 +213,7 @@ agent_provider_allowed_env_keys() {
       fi
       for hint in "${provider_hints[@]}"; do
         case "$hint" in
+          zai|zai/*|z-ai|z-ai/*|glm-*) selected_provider="zai" ;;
           *amazon-bedrock*|*bedrock*|*aws*) selected_provider="bedrock" ;;
           *openrouter*) selected_provider="openrouter" ;;
           *deepseek*) selected_provider="deepseek" ;;
@@ -228,6 +229,7 @@ agent_provider_allowed_env_keys() {
       fi
 
       case "$selected_provider" in
+        zai) allowed_keys+=" ZAI_API_KEY" ;;
         openrouter) allowed_keys+=" OPENROUTER_API_KEY" ;;
         deepseek) allowed_keys+=" DEEPSEEK_API_KEY" ;;
         anthropic) allowed_keys+=" ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN" ;;

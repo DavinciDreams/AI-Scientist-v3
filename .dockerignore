@@ -1,5 +1,4 @@
-# Keep Docker build context small for src/docker/agent-cli/Dockerfile.
-# Assumption: current image builds do not need repo dotfiles or dot-directories.
+# Keep secrets, local dependencies and results out of both Docker images.
 
 # Ignore all dotfiles and dot-directories at any depth.
 .*
@@ -7,10 +6,17 @@
 
 # Large/generated directories.
 results/
+scratch/
+node_modules/
+**/node_modules/
+**/dist/
+build/
+output/
+outputs/
+playground/
+examples/grpo/resources/
 __pycache__/
 **/__pycache__/
 .pytest_cache/
 *.egg-info/
 **/*.egg-info/
-
-# Explicit keepers are not needed today because the Dockerfile copies nothing from the repo.

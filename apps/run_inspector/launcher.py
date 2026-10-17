@@ -13,6 +13,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from apps.run_inspector.backend.app import create_app
+from apps.run_inspector.backend.control import ControlConfig, TaskRoot, config_names
 
 
 def parse_args() -> argparse.Namespace:
@@ -31,15 +32,46 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Enable uvicorn autoreload",
     )
+    parser.add_argument(
+        "--enable-launch",
+        action="store_true",
+        help="Allow the UI to launch `agsci run`/`agsci doctor` jobs and create tasks",
+    )
+    parser.add_argument(
+        "--tasks-root",
+        default=None,
+        help="Writable directory for task briefs created in the UI (next to examples/)",
+    )
+    parser.add_argument("--max-running-jobs", type=int, default=2, help="Concurrent job limit")
     return parser.parse_args()
+
+
+def _resolve(path: str) -> Path:
+    resolved = Path(path).expanduser()
+    return resolved if resolved.is_absolute() else (REPO_ROOT / resolved).resolve()
+
+
+def control_config(args: argparse.Namespace, results_root: Path) -> ControlConfig:
+    task_roots = [TaskRoot("examples", REPO_ROOT / "examples")]
+    if args.tasks_root:
+        task_roots.append(TaskRoot("tasks", _resolve(args.tasks_root), writable=True))
+    return ControlConfig(
+        results_root=results_root,
+        jobs_dir=results_root / ".jobs",
+        task_roots=tuple(task_roots),
+        command_prefix=(sys.executable, "-m", "src.agsci.main"),
+        fixed_overrides=(f"paths.results_root={results_root}",),
+        cwd=REPO_ROOT,
+        launch_enabled=args.enable_launch,
+        max_running_jobs=args.max_running_jobs,
+        presets=config_names(REPO_ROOT / "configs" / "preset"),
+        providers=config_names(REPO_ROOT / "configs" / "provider"),
+    )
 
 
 def main() -> int:
     args = parse_args()
-    repo_root = REPO_ROOT
-    results_root = Path(args.results_root).expanduser()
-    if not results_root.is_absolute():
-        results_root = (repo_root / results_root).resolve()
+    results_root = _resolve(args.results_root)
 
     frontend_dist = None
     if not args.dev:
@@ -57,6 +89,7 @@ def main() -> int:
         results_root=results_root,
         frontend_dist=frontend_dist,
         agentlens_base_url=args.agentlens_base_url,
+        control=control_config(args, results_root),
     )
 
     uvicorn.run(
