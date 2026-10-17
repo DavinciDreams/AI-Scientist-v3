@@ -1,8 +1,11 @@
 # Coolify with Z.ai GLM-5.3-Flash
 
-This deployment serves the existing Run Inspector and provides `agsci-zai` in
-the container terminal to launch research runs. The inspector browses results;
-it does not launch jobs. Starting/restarting the service does not start research.
+This deployment serves the web UI (runs dashboard, launch form, job logs and the
+Run Inspector) and provides `agsci-zai` in the container terminal. Runs launched
+from the **Launch** page go through the same `agsci-zai` wrapper, so the provider,
+agent image, env file and results root are fixed by the deployment. Set
+`SCIENTIST_LAUNCH_ENABLED=0` to make the UI read-only. Starting/restarting the
+service does not start research.
 
 The pipeline retains the upstream Docker architecture: a controller launches
 each agent phase in the image built from `src/docker/agent-cli/Dockerfile`.
@@ -71,7 +74,14 @@ socket paths across the controller and agent containers. They are private to UID
 
 ## Check and run
 
-Open the scientist container terminal in Coolify:
+From the web UI: open **Launch**, pick a task (or create one from a brief under
+`/data/sakanascientist/tasks`), press **Check setup** (doctor), then **Dry run**,
+then **Launch run**. **Jobs** streams each job's output; job records and logs
+live in `/data/sakanascientist/jobs`. Jobs are children of the web server, so
+redeploying or restarting the service interrupts running jobs. Use **Continue…**
+on the **Runs** page to resume an interrupted run from its directory.
+
+Or open the scientist container terminal in Coolify:
 
 ```sh
 agsci-zai doctor examples/circpack
@@ -83,8 +93,8 @@ agsci-zai run examples/circpack \
   posthoc.execution.max_selected_analyses=1
 ```
 
-For long jobs, use a persistent terminal or a Coolify scheduled task. Refresh
-the inspector after results appear. Place your own tasks under
+For long terminal jobs, use a persistent terminal or a Coolify scheduled task.
+Runs started in the terminal also appear on the **Runs** page. Place your own tasks under
 `/data/sakanascientist/tasks` and pass their absolute paths.
 
 Z.ai Flash supports image input but does not generate bitmap images. Optional

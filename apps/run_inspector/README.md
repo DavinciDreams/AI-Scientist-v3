@@ -1,6 +1,8 @@
 # Run Inspector
 
-Web UI for inspecting investigation runs in `results/`.
+Web UI for the pipeline: a runs dashboard, a launch form, live job logs, and the
+inspector for investigation runs in `results/`. Launching needs `--enable-launch`;
+see `docs/run_inspector.md`.
 
 ## Quick start
 

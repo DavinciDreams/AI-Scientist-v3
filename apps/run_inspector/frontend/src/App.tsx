@@ -1,215 +1,99 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { fetchNodeDetail, fetchRunGraph, fetchRuns, forceRefresh } from "./api/client";
-import { DetailPanel } from "./components/DetailPanel";
-import { GraphPanel } from "./components/GraphPanel";
-import type { NodeDetail, RunGraph, RunSummary } from "./types";
+import { useCallback, useEffect, useState } from "react";
+import { fetchControlConfig, fetchJobs, isActive, type ControlConfig, type Job } from "./api/control";
+import { href, navigate, useRoute, type ViewName } from "./router";
+import { InspectorView } from "./views/InspectorView";
+import { JobsView } from "./views/JobsView";
+import { LaunchView } from "./views/LaunchView";
+import { StudiesView } from "./views/StudiesView";
+
+const NAV: { view: ViewName; label: string }[] = [
+  { view: "runs", label: "Runs" },
+  { view: "launch", label: "Launch" },
+  { view: "jobs", label: "Jobs" },
+  { view: "inspect", label: "Inspector" },
+];
+
+const JOB_POLL_MS = 4000;
 
 export function App() {
-  const [runs, setRuns] = useState<RunSummary[]>([]);
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
-  const [graph, setGraph] = useState<RunGraph | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [detail, setDetail] = useState<NodeDetail | null>(null);
-  const [status, setStatus] = useState("Loading runs...");
-  const [error, setError] = useState<string | null>(null);
-  const [refreshCount, setRefreshCount] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
-  // Idea node ids revealed during the GraphPanel progressive-build animation; forwarded
-  // to the performance plot so it reveals in lockstep. `null` = show everything.
-  const [revealedIdeaNodeIds, setRevealedIdeaNodeIds] = useState<Set<string> | null>(null);
-
-  const loadRuns = async () => {
-    setError(null);
-    setStatus("Refreshing runs...");
-    try {
-      const runList = await fetchRuns();
-      setRuns(runList);
-      if (runList.length === 0) {
-        setSelectedRunId(null);
-        setGraph(null);
-        setDetail(null);
-        setStatus("No runs found under results root.");
-        return;
-      }
-
-      setSelectedRunId((prev) => {
-        if (prev && runList.some((run) => run.run_id === prev)) {
-          return prev;
-        }
-        return runList[0].run_id;
-      });
-      setStatus(`Loaded ${runList.length} run(s).`);
-    } catch (runError) {
-      setError(runError instanceof Error ? runError.message : String(runError));
-      setStatus("Failed to load runs.");
-    }
-  };
+  const route = useRoute();
+  const [config, setConfig] = useState<ControlConfig | null>(null);
+  const [jobs, setJobs] = useState<Job[]>([]);
 
   useEffect(() => {
-    void loadRuns();
+    fetchControlConfig().then(setConfig).catch(() => setConfig(null));
+  }, []);
+
+  const refreshJobs = useCallback(async () => {
+    try {
+      setJobs(await fetchJobs());
+    } catch {
+      // Keep the last list; the views surface their own errors.
+    }
   }, []);
 
   useEffect(() => {
-    setRevealedIdeaNodeIds(null);
-    if (!selectedRunId) {
-      setGraph(null);
-      setDetail(null);
-      return;
-    }
+    void refreshJobs();
+    const timer = window.setInterval(() => void refreshJobs(), JOB_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [refreshJobs]);
 
-    let cancelled = false;
-    const loadGraph = async () => {
-      setStatus(`Loading graph for ${selectedRunId}...`);
-      setError(null);
-      try {
-        const graphPayload = await fetchRunGraph(selectedRunId);
-        if (cancelled) return;
-        setGraph(graphPayload);
-
-        // The graph response carries a fully-populated RunSummary (with counts).
-        // Merge it back into the runs list so the header pills update.
-        setRuns((prev) =>
-          prev.map((r) => (r.run_id === graphPayload.run.run_id ? graphPayload.run : r)),
-        );
-
-        const existing = selectedNodeId;
-        if (existing && graphPayload.nodes.some((node) => node.id === existing)) {
-          setSelectedNodeId(existing);
-        } else if (graphPayload.nodes.length > 0) {
-          setSelectedNodeId(graphPayload.nodes[0].id);
-        } else {
-          setSelectedNodeId(null);
-          setDetail(null);
-        }
-        setStatus(`Graph loaded: ${graphPayload.nodes.length} nodes.`);
-      } catch (graphError) {
-        if (cancelled) return;
-        setError(graphError instanceof Error ? graphError.message : String(graphError));
-        setGraph(null);
-        setDetail(null);
-        setStatus("Failed to load graph.");
-      }
-    };
-
-    void loadGraph();
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedRunId, refreshCount]);
-
-  useEffect(() => {
-    if (!selectedRunId || !selectedNodeId) {
-      setDetail(null);
-      return;
-    }
-
-    let cancelled = false;
-    const loadDetail = async () => {
-      setError(null);
-      try {
-        const detailPayload = await fetchNodeDetail(selectedRunId, selectedNodeId);
-        if (cancelled) return;
-        setDetail(detailPayload);
-      } catch (detailError) {
-        if (cancelled) return;
-        setError(detailError instanceof Error ? detailError.message : String(detailError));
-        setDetail(null);
-      }
-    };
-
-    void loadDetail();
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedRunId, selectedNodeId, refreshCount]);
-
-  const handleSelectIdea = useCallback(
-    (nodeId: string) => {
-      setSelectedNodeId(nodeId);
-    },
-    [],
-  );
-
-  const selectedRunSummary = useMemo(
-    () => runs.find((run) => run.run_id === selectedRunId) ?? null,
-    [runs, selectedRunId],
-  );
+  const activeJobs = jobs.filter((job) => isActive(job.status)).length;
 
   return (
-    <main className="app-shell">
-      <header className="app-header">
-        <div className="header-left">
-          <h1>Agentic Scientist Inspector</h1>
-          <section className="run-summary-row">
-            {selectedRunSummary ? (
-              <>
-                <div className="summary-pill">agent: {selectedRunSummary.agent}</div>
-                <div className="summary-pill">workers: {selectedRunSummary.worker_count ?? "..."}</div>
-                <div className="summary-pill">ideas: {selectedRunSummary.idea_count ?? "..."}</div>
-                <div className="summary-pill">program evals: {selectedRunSummary.program_eval_count ?? "..."}</div>
-                <div className="summary-pill">containerized: {selectedRunSummary.containerized != null ? String(selectedRunSummary.containerized) : "..."}</div>
-                <div className="summary-pill">
-                  best score: {selectedRunSummary.best_combined_score ?? "n/a"}
-                </div>
-              </>
-            ) : (
-              <div className="subtle">No run selected.</div>
-            )}
-          </section>
+    <main className={`app-shell view-${route.view}`}>
+      <nav className="top-nav" aria-label="Sections">
+        <a className="brand" href={href("runs")}>
+          <span className="brand-mark" aria-hidden="true" />
+          Agentic Scientist
+        </a>
+        <div className="nav-links">
+          {NAV.map((item) => (
+            <a
+              key={item.view}
+              href={href(item.view)}
+              className={`nav-link${route.view === item.view ? " active" : ""}`}
+              aria-current={route.view === item.view ? "page" : undefined}
+            >
+              {item.label}
+              {item.view === "jobs" && activeJobs > 0 ? (
+                <span className="nav-badge" title={`${activeJobs} running`}>{activeJobs}</span>
+              ) : null}
+            </a>
+          ))}
         </div>
-        <div className="controls">
-          <select
-            className="run-select"
-            value={selectedRunId ?? ""}
-            onChange={(event) => setSelectedRunId(event.target.value || null)}
-          >
-            {runs.map((run) => (
-              <option key={run.run_id} value={run.run_id}>
-                {run.run_id}
-              </option>
-            ))}
-          </select>
-          <button
-            className="refresh-button"
-            disabled={refreshing}
-            onClick={() => {
-              setRefreshing(true);
-              void forceRefresh()
-                .then(() => { setRefreshCount((c) => c + 1); return loadRuns(); })
-                .finally(() => setRefreshing(false));
-            }}
-          >
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
+        <div className="nav-meta">
+          {config && !config.launch_enabled ? (
+            <span className="mode-pill" title="Start the server with --enable-launch to run jobs from the UI">
+              read-only
+            </span>
+          ) : null}
+          {config?.agent_locked ? <span className="mode-pill">{config.agent_locked}</span> : null}
         </div>
-      </header>
+      </nav>
 
-      {refreshing && <div className="refresh-progress"><div className="refresh-progress-bar" /></div>}
-
-      <section className="status-row">
-        <span>{status}</span>
-        {error ? <span className="error">{error}</span> : null}
-      </section>
-
-      <section className="main-panels">
-        <div className="panel left-panel">
-          <GraphPanel
-            runId={selectedRunId}
-            graph={graph}
-            selectedNodeId={selectedNodeId}
-            onSelectNode={setSelectedNodeId}
-            onRevealChange={setRevealedIdeaNodeIds}
-          />
-        </div>
-        <div className="panel right-panel">
-          <DetailPanel
-            runId={selectedRunId}
-            detail={detail}
-            onSelectIdea={handleSelectIdea}
-            revealedIdeaNodeIds={revealedIdeaNodeIds}
-          />
-        </div>
-      </section>
+      {route.view === "runs" ? <StudiesView jobs={jobs} config={config} /> : null}
+      {route.view === "launch" ? (
+        <LaunchView
+          // Remount when the link changes the requested task or run to continue.
+          key={route.params.toString()}
+          config={config}
+          params={route.params}
+          onLaunched={(job) => {
+            void refreshJobs();
+            navigate(href("jobs", job.job_id));
+          }}
+        />
+      ) : null}
+      {route.view === "jobs" ? (
+        <JobsView jobs={jobs} selectedJobId={route.rest || null} onChanged={refreshJobs} />
+      ) : null}
+      {route.view === "inspect" ? (
+        <InspectorView
+          runId={route.params.get("run")}
+          onRunChange={(runId) => navigate(href("inspect", "", { run: runId }), { replace: true })}
+        />
+      ) : null}
     </main>
   );
 }

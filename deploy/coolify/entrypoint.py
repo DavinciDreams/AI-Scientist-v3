@@ -24,7 +24,7 @@ def main() -> None:
         staging = source.with_name(revision + "-staging")
         shutil.copytree("/opt/source", staging, ignore=shutil.ignore_patterns(".venv"))
         staging.rename(source)
-    for name in ("results", "tmp", "tasks", "secrets", "home"):
+    for name in ("results", "tmp", "tasks", "jobs", "secrets", "home"):
         (data / name).mkdir(parents=True, exist_ok=True)
     (data / "secrets").chmod(0o700)
     (data / "home").chmod(0o700)
