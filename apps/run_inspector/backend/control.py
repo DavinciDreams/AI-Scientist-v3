@@ -436,7 +436,7 @@ class JobManager:
 
     # -- queries
 
-    def list(self) -> list[dict[str, Any]]:
+    def list_jobs(self) -> list[dict[str, Any]]:
         with self._lock:
             jobs = sorted(self._jobs.values(), key=lambda job: job.created_at, reverse=True)
             return [job.public() for job in jobs]

@@ -231,7 +231,7 @@ def test_job_runs_logs_and_records_its_run_id(tmp_path: Path) -> None:
     assert _wait_for(manager, dry["job_id"])["status"] == "succeeded"
 
     # A new manager (server restart) reloads finished jobs from disk.
-    assert {j["job_id"] for j in JobManager(manager._config).list()} == {job["job_id"], dry["job_id"]}
+    assert {j["job_id"] for j in JobManager(manager._config).list_jobs()} == {job["job_id"], dry["job_id"]}
 
 
 def test_failed_cancelled_limited_and_interrupted_jobs(tmp_path: Path) -> None:

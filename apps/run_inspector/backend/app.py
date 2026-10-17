@@ -337,7 +337,7 @@ def _register_control_routes(app: FastAPI, store: RunStore, control: ControlConf
 
     @app.get("/api/jobs")
     def list_jobs() -> list[dict[str, Any]]:
-        return jobs.list()
+        return jobs.list_jobs()
 
     @app.post("/api/jobs/preview")
     def preview_job(payload: dict[str, Any] = Body(...)) -> dict[str, Any]:
