@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
-import { fetchIdeaAncestors, fetchProgramDiff, fetchProgramDirDiff } from "../api/client";
+import { fetchIdeaAncestors, fetchProgramDiff } from "../api/client";
 import type {
   AncestorEntry,
   ProgramDiff,
-  ProgramDirDiff,
-  ProgramDirDiffFile,
   ProgramLocation,
   SiblingProgramEntry,
 } from "../types";
@@ -206,8 +204,6 @@ export function ProgramDiffViewer({ runId, ideaId, ideaTitle, workerName }: Prog
       return;
     }
     setError(null);
-    setDirDiff(null);
-    setSelectedFile(null);
     setDiff(null);
     fetchProgramDiff(runId, fromPath, toPath)
       .then(setDiff)
@@ -350,26 +346,6 @@ export function ProgramDiffViewer({ runId, ideaId, ideaTitle, workerName }: Prog
         )}
       </div>
 
-      {dirDiff && dirDiff.files.length > 0 ? (
-        <div className="diff-selector">
-          <label>File:</label>
-          <select
-            value={selectedFile ? dirDiff.files.indexOf(selectedFile) : ""}
-            onChange={handleFileChange}
-          >
-            {dirDiff.files.map((file, idx) => (
-              <option key={file.relpath} value={idx}>
-                {file.status.toUpperCase().padEnd(8, " ")} {file.relpath}
-                {file.is_binary ? " (binary)" : ""}
-              </option>
-            ))}
-          </select>
-          <span className="diff-loading-text">
-            {dirDiff.stats.modified} modified, {dirDiff.stats.added} added, {dirDiff.stats.removed} removed
-          </span>
-        </div>
-      ) : null}
-
       {diff && diff.stats && (
         <div className="diff-stats">
           <span className="diff-stat addition">+{diff.stats.additions}</span>
@@ -389,7 +365,6 @@ export function ProgramDiffViewer({ runId, ideaId, ideaTitle, workerName }: Prog
         {diff && diff.lines.length === 0 && (
           <div className="diff-empty">No differences found.</div>
         )}
-        {diff && diff.lines.length === 0 && <div className="diff-empty">No differences found.</div>}
         {diff && diff.lines.length > 0 && (
           <table className="diff-table">
             <tbody>
