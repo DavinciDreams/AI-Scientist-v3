@@ -26,6 +26,8 @@ writes the paper, with every stage kept under one run directory.
 
 ## Install
 
+For Coolify with Z.ai GLM-5.3-Flash, see [the deployment guide](docs/coolify.md).
+
 The recommended setup runs every agent phase inside Docker, which is the
 default for `agsci run`. Install [Docker](https://docs.docker.com/get-docker/),
 then build the agent image:

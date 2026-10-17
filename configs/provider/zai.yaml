@@ -1,0 +1,10 @@
+# @package _global_
+# Z.ai Coding Plan, through Pi's OpenAI Chat Completions adapter.
+agent:
+  name: pi
+  model: zai/glm-5.3-flash
+  reasoning_effort: high
+
+container:
+  enabled: true
+  network: bridge

@@ -1,0 +1,19 @@
+#!/bin/sh
+set -eu
+cd /data/sakanascientist/current
+export PYTHONPATH="$PWD"
+export AGENTIC_TEMP_ROOT=/data/sakanascientist/tmp
+export TMPDIR="$AGENTIC_TEMP_ROOT"
+export AGENT_CONTAINER_RESTRICT_ENV=1
+if [ "$#" -eq 0 ]; then
+  echo 'Usage: agsci-zai <run|doctor> [task-directory] [--dry-run] [key=value ...]' >&2
+  exit 2
+fi
+command="$1"
+shift
+case "$command" in run|doctor) ;; *) echo 'Expected run or doctor' >&2; exit 2 ;; esac
+exec python -m src.agsci.main "$command" "$@" \
+  provider=zai \
+  "container.image=$AGENT_IMAGE" \
+  container.env_file=/data/sakanascientist/secrets/zai.env \
+  paths.results_root=/data/sakanascientist/results

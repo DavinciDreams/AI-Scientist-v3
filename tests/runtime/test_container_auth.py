@@ -34,6 +34,23 @@ AGENT_AUTH_PATHS: list[tuple[str, str, str]] = [
 q = shlex.quote
 
 
+@pytest.mark.parametrize("model", ["zai/glm-5.3-flash", "glm-5.3-flash"])
+def test_zai_credentials_are_selected_without_other_provider_keys(model: str) -> None:
+    run = _ok(f"agent_provider_allowed_env_keys pi {q(model)} ''", env={})
+    keys = run.stdout.split()
+    assert "ZAI_API_KEY" in keys
+    assert "OPENAI_API_KEY" not in keys
+    assert "ANTHROPIC_API_KEY" not in keys
+
+
+def test_zai_provider_from_env_file_selects_its_key(tmp_path: Path) -> None:
+    env_file = tmp_path / "provider.env"
+    env_file.write_text("PI_CODING_AGENT_PROVIDER=zai\n", encoding="utf-8")
+    run = _ok(f"agent_provider_allowed_env_keys pi '' {q(str(env_file))}", env={})
+    assert "ZAI_API_KEY" in run.stdout.split()
+    assert "OPENAI_API_KEY" not in run.stdout.split()
+
+
 def _sh(script: str, *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
     body = f"set -euo pipefail\nsource {q(str(HELPER))}\n{script}"
     return subprocess.run(

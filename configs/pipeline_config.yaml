@@ -32,6 +32,8 @@ defaults:
   # Optional task preset (configs/preset/<task>.yaml), selected with preset=<task>;
   # listed after _self_ so preset values override this file's orchestrator defaults.
   - preset: null
+  # Optional model/provider configuration, independent of research task presets.
+  - provider: null
 
 # Where the orchestrator wants a different default than the stage itself.
 investigation:
